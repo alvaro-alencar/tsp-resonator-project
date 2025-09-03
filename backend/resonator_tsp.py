@@ -230,12 +230,12 @@ def generate_resonator_route(n: int, N: int = 7, amplitude: float = 1.0, shift: 
 
 
 def two_opt(route: List[int], dist_matrix: List[List[int]], max_iterations: int = 5000) -> Tuple[List[int], int]:
-    """Perform a 2‑Opt local search to improve a TSP tour.
+    """Perform a 2-Opt local search (Best Improvement) to improve a TSP tour.
 
-    This implementation scans for any pair of non‑adjacent edges whose
-    reversal would shorten the tour.  It applies the first such swap
-    found in each iteration and continues until no improvement is
-    possible or the iteration limit is reached.
+    This implementation scans all possible 2-Opt swaps in each iteration and
+    applies the one that yields the largest cost reduction (best improvement).
+    The process continues until no improvement is possible or the iteration
+    limit is reached.
 
     Parameters
     ----------
@@ -244,7 +244,7 @@ def two_opt(route: List[int], dist_matrix: List[List[int]], max_iterations: int 
     dist_matrix : List[List[int]]
         Precomputed distance matrix.
     max_iterations : int, optional
-        Maximum number of swap passes to perform.  Defaults to 5000.
+        Maximum number of swap passes to perform. Defaults to 5000.
 
     Returns
     -------
@@ -258,25 +258,34 @@ def two_opt(route: List[int], dist_matrix: List[List[int]], max_iterations: int 
     improved = True
     while improved and iteration < max_iterations:
         improved = False
+        best_delta = 0
+        best_swap = None
+
         for i in range(1, n - 1):
             for j in range(i + 1, n):
-                # skip adjacent edges; j % n handles wrap‑around
                 if j - i == 1:
                     continue
+                
                 a, b = best_route[i - 1], best_route[i]
                 c, d = best_route[j - 1], best_route[j % n]
-                # difference in cost if we reverse the segment [i:j]
-                current = dist_matrix[a][b] + dist_matrix[c][d]
-                proposed = dist_matrix[a][c] + dist_matrix[b][d]
-                if proposed < current:
-                    # perform swap
-                    best_route[i:j] = reversed(best_route[i:j])
-                    best_cost += (proposed - current)
-                    improved = True
-                    break
-            if improved:
-                break
+
+                current_edges_cost = dist_matrix[a][b] + dist_matrix[c][d]
+                proposed_edges_cost = dist_matrix[a][c] + dist_matrix[b][d]
+                
+                delta = proposed_edges_cost - current_edges_cost
+                
+                if delta < best_delta:
+                    best_delta = delta
+                    best_swap = (i, j)
+        
+        if best_swap:
+            i, j = best_swap
+            best_route[i:j] = reversed(best_route[i:j])
+            best_cost += best_delta
+            improved = True
+        
         iteration += 1
+        
     return best_route, best_cost
 
 
