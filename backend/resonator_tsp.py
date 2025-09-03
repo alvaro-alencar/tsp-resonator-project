@@ -1,3 +1,4 @@
+# backend/resonator_tsp.py
 """A simple implementation of the SAT Resonator heuristic for the
 Travelling Salesman Problem (TSP), enhanced with Iterated Local Search (ILS).
 
@@ -124,15 +125,15 @@ def two_opt(route: List[int], dist_matrix: List[List[int]], max_iterations: int 
 
 
 def perturb_route(route: List[int], strength: int = 4) -> List[int]:
-    """Perturb a route using a double-bridge move (4-opt).
-    
-    This move breaks four edges and reconnects them in a different valid way,
-    effectively "kicking" the solution to a new neighborhood.
-    """
+    """Perturb a route using a double-bridge move (4-opt)."""
     n = len(route)
     pos = sorted([random.randint(0, n - 1) for _ in range(4)])
     p1, p2, p3, p4 = pos
     
+    # Garante que os pontos não sejam muito próximos para uma perturbação eficaz
+    if len(set(pos)) < 4:
+        return route[n//2:] + route[:n//2] # Uma perturbação mais simples como fallback
+
     return route[0:p1] + route[p3:p4] + route[p2:p3] + route[p1:p2] + route[p4:n]
 
 
@@ -142,7 +143,7 @@ def run_trial(coords: List[Tuple[float, float]],
               amplitude: float,
               shift: float,
               two_opt_iterations: int = 2000,
-              ils_iterations: int = 50) -> Tuple[int, int]:
+              ils_iterations: int = 50) -> Tuple[int, int, List[int]]: # Modificado
     """Execute a single trial with Iterated Local Search (ILS)."""
     n = len(coords)
     
@@ -155,18 +156,14 @@ def run_trial(coords: List[Tuple[float, float]],
     
     # 3. Iterated Local Search Loop
     for _ in range(ils_iterations):
-        # 3a. Perturbation
         perturbed_route = perturb_route(current_best_route)
-        
-        # 3b. Local Search on perturbed route
         new_route, new_cost = two_opt(perturbed_route, dist_matrix, max_iterations=two_opt_iterations)
         
-        # 3c. Acceptance Criterion
         if new_cost < current_best_cost:
             current_best_route = new_route
             current_best_cost = new_cost
             
-    return initial_cost, current_best_cost
+    return initial_cost, current_best_cost, current_best_route # Modificado
 
 
 def grid_search(coords: List[Tuple[float, float]],
@@ -193,7 +190,7 @@ def grid_search(coords: List[Tuple[float, float]],
                     random.seed(seed)
                     start_time = time.perf_counter()
                     
-                    initial_cost, final_cost = run_trial(coords,
+                    initial_cost, final_cost, _ = run_trial(coords, # Ignoramos a rota aqui
                                                          dist_matrix,
                                                          N,
                                                          amplitude,
@@ -254,7 +251,6 @@ def main() -> None:
     save_results_csv(results, args.output)
     print(f"\nSaved {len(results)} records to {args.output}")
 
-    # Find and print the best result
     if results:
         best_run = min(results, key=lambda x: x['final_cost'])
         print("\n--- Best Result Found ---")
