@@ -1,0 +1,4 @@
+c Unsatisfiable tiny CNF fixture: x and not x
+p cnf 1 2
+1 0
+-1 0
