@@ -1,0 +1,29 @@
+name: Resonant Engine Smoke Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature/resonant-intelligence-core
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run smoke tests
+        working-directory: backend
+        run: python -m unittest test_resonant_engine.py
+
+      - name: Run SAT benchmark smoke
+        working-directory: backend
+        run: python benchmark_sat_resonance.py --instances 5 --variables 20 --clauses 80 --max_flips 500
