@@ -20,7 +20,14 @@ raw input
 
 ## Current implementation
 
-This PR adds a small generic core in `backend/resonant_core.py` and a TSP domain adapter in `backend/tsp_domain.py`.
+This PR adds a small generic core in `backend/resonant_core.py` plus two domain adapters:
+
+- `backend/tsp_domain.py` for TSP;
+- `backend/sat_domain.py` for SAT/CNF.
+
+The original `backend/resonator_tsp.py` is preserved. The new files do not replace the existing solver; they turn its logic into a reusable architecture.
+
+## TSP Resonator
 
 The current TSP domain uses:
 
@@ -30,36 +37,44 @@ The current TSP domain uses:
 - route verification by closed-tour cost;
 - refinement with 2-Opt and Iterated Local Search.
 
-The original `backend/resonator_tsp.py` is preserved. The new files do not replace the existing solver; they turn its logic into a reusable architecture.
+Runner:
+
+```bash
+cd backend
+python run_resonant_tsp.py ../berlin52.tsp --N 7 --A 1.0 --shift 0.0 --seed 0
+```
+
+## SAT Resonator
+
+The first SAT domain uses:
+
+- a DIMACS CNF encoder;
+- a polarity/frequency/harmonic variable field;
+- assignment collapse by resonance sign, inverse sign and frequency bias;
+- verification by unsatisfied clause count;
+- refinement with a WalkSAT-style local search.
+
+Runner:
+
+```bash
+cd backend
+python run_resonant_sat.py path/to/problem.cnf --max_flips 10000 --noise 0.1 --seed 0
+```
+
+Initial benchmark targets:
+
+- compare resonance-seeded assignments against random assignment;
+- compare resonance-seeded WalkSAT against plain WalkSAT;
+- measure unsatisfied clauses before refinement;
+- measure flips until solution.
 
 ## Why this matters
 
 The TSP solver already shows the desired gesture: a hard combinatorial problem is not attacked by exhaustive enumeration. It is transformed into a structured field that emits a strong initial candidate before local refinement.
 
-The next research step is to apply this same form to SAT and code repair.
+The SAT adapter is the next step: the same architecture is now applied to a canonical NP-complete domain.
 
-## Next domains
-
-### SAT Resonator
-
-Input: DIMACS CNF.
-
-Planned stages:
-
-- encode variables, clauses, polarity and conflicts;
-- build a variable-clause resonance field;
-- collapse an initial truth assignment;
-- verify by number of satisfied clauses;
-- refine with a WalkSAT-style local search guided by resonance scores.
-
-Initial benchmark:
-
-- compare against random assignment;
-- compare against plain WalkSAT;
-- measure satisfied clauses before refinement;
-- measure flips until solution.
-
-### Code Resonator
+## Next domain: Code Resonator
 
 Input: repository plus failing test or issue.
 
