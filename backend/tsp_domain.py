@@ -20,6 +20,15 @@ class TspEncoding:
     dist_matrix: DistanceMatrix
 
 
+@dataclass(frozen=True)
+class GeometricSignal:
+    city_index: int
+    angle: float
+    radius: float
+    local_density: float
+    value: float
+
+
 class TspEncoder:
     def encode(self, raw_input: Any) -> ProblemInstance[TspEncoding]:
         if isinstance(raw_input, str):
@@ -56,12 +65,76 @@ class HarmonicTspFieldBuilder:
         )
 
 
+class GeometricTspFieldBuilder:
+    """Build a resonance field from geometric properties instead of node index.
+
+    This field attempts to encode actual spatial structure:
+    - angular position relative to centroid;
+    - radial distance from centroid;
+    - local neighborhood density.
+    """
+
+    def build(self, problem: ProblemInstance[TspEncoding]) -> ResonanceField[List[GeometricSignal]]:
+        coords = problem.encoded.coords
+        centroid_x = sum(x for x, _ in coords) / len(coords)
+        centroid_y = sum(y for _, y in coords) / len(coords)
+
+        signals: List[GeometricSignal] = []
+        for idx, (x, y) in enumerate(coords):
+            dx = x - centroid_x
+            dy = y - centroid_y
+            angle = math.atan2(dy, dx)
+            radius = math.sqrt(dx * dx + dy * dy)
+
+            distances = []
+            for other_idx, (ox, oy) in enumerate(coords):
+                if idx == other_idx:
+                    continue
+                distances.append(math.sqrt((x - ox) ** 2 + (y - oy) ** 2))
+            distances.sort()
+            local_density = sum(distances[:5]) / max(1, min(5, len(distances)))
+
+            value = angle + (0.0001 * radius) - (0.0001 * local_density)
+
+            signals.append(
+                GeometricSignal(
+                    city_index=idx,
+                    angle=angle,
+                    radius=radius,
+                    local_density=local_density,
+                    value=value,
+                )
+            )
+
+        return ResonanceField(
+            values=signals,
+            metadata={
+                "field_type": "geometric_resonance",
+                "uses_geometry": True,
+            },
+        )
+
+
 class HarmonicRouteCollapse:
     def collapse(self, problem: ProblemInstance[TspEncoding], field: ResonanceField[List[float]]) -> List[Candidate[Route]]:
         route = sorted(range(len(problem.encoded.coords)), key=lambda idx: field.values[idx])
         return [
             Candidate(route, {"collapse": "ascending_harmonic_order"}),
             Candidate(list(reversed(route)), {"collapse": "descending_harmonic_order"}),
+        ]
+
+
+class GeometricRouteCollapse:
+    def collapse(
+        self,
+        problem: ProblemInstance[TspEncoding],
+        field: ResonanceField[List[GeometricSignal]],
+    ) -> List[Candidate[Route]]:
+        ordered = sorted(field.values, key=lambda signal: signal.value)
+        route = [signal.city_index for signal in ordered]
+        return [
+            Candidate(route, {"collapse": "geometric_signal_order"}),
+            Candidate(list(reversed(route)), {"collapse": "inverse_geometric_signal_order"}),
         ]
 
 
