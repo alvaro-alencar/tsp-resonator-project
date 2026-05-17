@@ -29,6 +29,8 @@ class SequentialResonantRouteCollapse:
         momentum_weight: float = -0.06817403046939301,
         phase: float = 1.127885708864822,
         radius_target: float = 0.7885399799896772,
+        closure_weight: float = -4.5,
+        closure_power: float = 2.0,
         all_starts: bool = True,
     ) -> None:
         self.distance_weight = distance_weight
@@ -39,6 +41,8 @@ class SequentialResonantRouteCollapse:
         self.momentum_weight = momentum_weight
         self.phase = phase
         self.radius_target = radius_target
+        self.closure_weight = closure_weight
+        self.closure_power = closure_power
         self.all_starts = all_starts
 
     def collapse(
@@ -69,6 +73,8 @@ class SequentialResonantRouteCollapse:
                         "collapse": "pure_sequential_resonant_front",
                         "start_city": start,
                         "post_refinement": False,
+                        "closure_weight": self.closure_weight,
+                        "closure_power": self.closure_power,
                     },
                 )
             )
@@ -93,6 +99,7 @@ class SequentialResonantRouteCollapse:
             current = route[-1]
             current_angle = signals_by_city[current].angle
             momentum = angular_delta(current_angle, previous_previous_angle)
+            progress = len(route) / n
             next_city = min(
                 unvisited,
                 key=lambda city: self._transition_score(
@@ -100,6 +107,8 @@ class SequentialResonantRouteCollapse:
                     signals_by_city,
                     current,
                     city,
+                    start,
+                    progress,
                     momentum,
                     max_distance,
                     max_radius,
@@ -117,6 +126,8 @@ class SequentialResonantRouteCollapse:
         signals_by_city: Dict[int, GeometricSignal],
         current: int,
         candidate: int,
+        start: int,
+        progress: float,
         momentum: float,
         max_distance: int,
         max_radius: float,
@@ -133,6 +144,9 @@ class SequentialResonantRouteCollapse:
         harmonic_term = math.sin(candidate_signal.angle + self.phase) + 0.5 * math.sin(
             2.0 * candidate_signal.angle + self.phase
         )
+        closure_term = (problem.encoded.dist_matrix[candidate][start] / max_distance) * (
+            progress ** self.closure_power
+        )
 
         return (
             self.distance_weight * distance_term
@@ -141,6 +155,7 @@ class SequentialResonantRouteCollapse:
             + self.radial_weight * radial_term
             + self.density_weight * density_term
             + self.harmonic_weight * harmonic_term
+            + self.closure_weight * closure_term
         )
 
 
