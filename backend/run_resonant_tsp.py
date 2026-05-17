@@ -8,6 +8,7 @@ import time
 
 from refiners import PureResonanceRefiner
 from resonant_core import ResonantPipeline
+from sequential_resonance_tsp import SequentialResonantRouteCollapse
 from tsp_domain import (
     GeometricRouteCollapse,
     GeometricTspFieldBuilder,
@@ -23,7 +24,7 @@ from tsp_domain import (
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("tsp_file")
-    parser.add_argument("--field", choices=["harmonic", "geometric"], default="geometric")
+    parser.add_argument("--field", choices=["harmonic", "geometric", "sequential"], default="sequential")
     parser.add_argument("--mode", choices=["pure", "refined"], default="pure")
     parser.add_argument("--N", type=int, default=7)
     parser.add_argument("--A", type=float, default=1.0)
@@ -36,9 +37,12 @@ def main() -> None:
     if args.field == "harmonic":
         field_builder = HarmonicTspFieldBuilder(args.N, args.A, args.shift)
         collapse = HarmonicRouteCollapse()
-    else:
+    elif args.field == "geometric":
         field_builder = GeometricTspFieldBuilder()
         collapse = GeometricRouteCollapse()
+    else:
+        field_builder = GeometricTspFieldBuilder()
+        collapse = SequentialResonantRouteCollapse()
 
     if args.mode == "pure":
         refiner = PureResonanceRefiner()
